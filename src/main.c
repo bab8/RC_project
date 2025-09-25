@@ -14,6 +14,8 @@
 
 #define FORWARD_PIN 22
 #define REVERSE_PIN 23
+#define REV_BUTTON 4
+#define FOR_BUTTON 2
 #define TIMER_RES_HZ 1000000 // 1 MHz = 1 tick = 1 mircosec
 #define PWM_PERIOD_TICKS 20000
 
@@ -31,42 +33,50 @@ typedef struct {
     mcpwm_generator_config_t for_gen_config;
 } Motor;
 
+void motor_stop(){
+    //disbale both gens
+    gpio_set_level(REVERSE_PIN, 0);
+    gpio_set_level(FORWARD_PIN, 0);
+}
 
 void motor_reverse(Motor motor){
     //drive forward pin low, disable gen
     //set duty cycle and enable reverse pin gen
-    gpio_set_level(FORWARD_PIN, 0);
-    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(motor.rev_gen,
-    MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY,MCPWM_GEN_ACTION_HIGH)));
-    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motor.rev_gen, 
-    MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,motor.rev_cmpr,MCPWM_GEN_ACTION_LOW)));
-    
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motor.rev_cmpr,(.75*PWM_PERIOD_TICKS)));
+    if(gpio_get_level(FOR_BUTTON) == 1){
+        gpio_set_level(FORWARD_PIN, 0);
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(motor.rev_gen,
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY,MCPWM_GEN_ACTION_HIGH)));
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motor.rev_gen, 
+        MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,motor.rev_cmpr,MCPWM_GEN_ACTION_LOW)));
+        
+        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motor.rev_cmpr,(.90*PWM_PERIOD_TICKS)));
+        ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_START_NO_STOP));
+    } else{
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(motor.rev_gen,
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY,MCPWM_GEN_ACTION_LOW)));
+        ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_START_STOP_EMPTY));
+    }
 
-    ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_START_NO_STOP));
-
-    //ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_START_STOP_EMPTY));
 }
 
 void motor_forward(Motor motor){
     //drive reverse pin low, disable gen
     //set duty cycle and enable forward pin gen
-    gpio_set_level(REVERSE_PIN, 0);
-    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(motor.for_gen,
-    MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY,MCPWM_GEN_ACTION_HIGH)));
-    ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motor.for_gen, 
-    MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,motor.for_cmpr,MCPWM_GEN_ACTION_LOW)));
-    
-    ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motor.for_cmpr,(.75*PWM_PERIOD_TICKS)));
+    if(gpio_get_level(REV_BUTTON) == 1){
+        gpio_set_level(REVERSE_PIN, 0);
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(motor.for_gen,
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY,MCPWM_GEN_ACTION_HIGH)));
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_compare_event(motor.for_gen, 
+        MCPWM_GEN_COMPARE_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,motor.for_cmpr,MCPWM_GEN_ACTION_LOW)));
+        
+        ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motor.for_cmpr,(.75*PWM_PERIOD_TICKS)));
+        ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_START_NO_STOP));
+    } else{
+        ESP_ERROR_CHECK(mcpwm_generator_set_action_on_timer_event(motor.for_gen,
+        MCPWM_GEN_TIMER_EVENT_ACTION(MCPWM_TIMER_DIRECTION_UP,MCPWM_TIMER_EVENT_EMPTY,MCPWM_GEN_ACTION_LOW)));
+        ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_START_STOP_EMPTY));
+    }
 
-    ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_START_NO_STOP));
-    //ESP_ERROR_CHECK(mcpwm_timer_start_stop(motor.timer,MCPWM_TIMER_STOP_FULL));
-}
-
-void motor_stop(){
-    //disbale both gens
-    gpio_set_level(REVERSE_PIN, 1);
-    gpio_set_level(FORWARD_PIN, 1);
 }
 
 Motor motor_driver_init(int forward_pin, int reverse_pin){
@@ -118,16 +128,25 @@ void app_main() {
     gpio_set_direction(FORWARD_PIN, GPIO_MODE_OUTPUT);
     gpio_reset_pin(REVERSE_PIN);
     gpio_set_direction(REVERSE_PIN, GPIO_MODE_OUTPUT);
-
-    /*Init motor driver*/
     
+    gpio_reset_pin(FOR_BUTTON);
+    gpio_set_direction(FOR_BUTTON, GPIO_MODE_INPUT);
+    gpio_pulldown_en(FOR_BUTTON);
+    
+    gpio_reset_pin(REV_BUTTON);
+    gpio_set_direction(REV_BUTTON, GPIO_MODE_INPUT);
+    gpio_pulldown_en(REV_BUTTON);
+    
+    /*Init motor driver*/
     Motor motor = motor_driver_init(FORWARD_PIN,REVERSE_PIN);
 
     while(1){
         /*Run Motor*/
         //Set direction R
         motor_forward(motor);
-        //vTaskDelay(5000/portTICK_PERIOD_MS);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
+        motor_reverse(motor);
+        vTaskDelay(1000/portTICK_PERIOD_MS);
         
         //motor_reverse(motor);
         //ESP_ERROR_CHECK(mcpwm_comparator_set_compare_value(motor1.rev_cmpr,(.75*PWM_PERIOD_TICKS)));
