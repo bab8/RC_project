@@ -1,7 +1,10 @@
 #include "motor.h"
 
+static const char* TAG = "MOTOR_MODULE";
+
 /*Unused for now*/
 void motor_stop(int forward_pin, int reverse_pin){
+    ESP_LOGI(TAG, "Motor stopping");
     //disbale both gens
     gpio_set_level(reverse_pin, 0);
     gpio_set_level(forward_pin, 0);
@@ -9,6 +12,7 @@ void motor_stop(int forward_pin, int reverse_pin){
 
 /*Motor reverse*/
 void motor_reverse(Motor motor, int forward_pin, int forward_button, double percent){
+    ESP_LOGI(TAG, "Motor reversing");
     //drive forward pin low
     //set duty cycle and enable reverse pin gen
     if(gpio_get_level(forward_button) == 1 && percent < 1.0){
@@ -30,6 +34,7 @@ void motor_reverse(Motor motor, int forward_pin, int forward_button, double perc
 }
 
 void motor_forward(Motor motor, int reverse_pin, int reverse_button, double percent){
+    ESP_LOGI(TAG, "Motor forward");
     //drive reverse pin low
     //set duty cycle and enable forward pin gen
     if(gpio_get_level(reverse_button) == 1 && percent < 1.0){
@@ -51,6 +56,7 @@ void motor_forward(Motor motor, int reverse_pin, int reverse_button, double perc
 }
 
 Motor motor_driver_init(int forward_pin, int reverse_pin){
+    ESP_LOGI(TAG, "Motor init entered");
     Motor motor = { 0 };
     //initialize timer
     motor.timer_config.group_id = 0;
@@ -89,6 +95,7 @@ Motor motor_driver_init(int forward_pin, int reverse_pin){
 
     //start timer
     ESP_ERROR_CHECK(mcpwm_timer_enable(motor.timer));
+    ESP_LOGI(TAG, "Motor init exit");
 
     return motor;
 }
