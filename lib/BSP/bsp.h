@@ -8,8 +8,8 @@
 
 #define FORWARD_PIN 22
 #define REVERSE_PIN 23
-#define REV_BUTTON 4
-#define FOR_BUTTON 2
+#define REV_BUTTON 18
+#define FOR_BUTTON 19
 
 void gpio_init();
 
