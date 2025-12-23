@@ -5,6 +5,7 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "driver/gpio.h"
+#include "nvs_flash.h"
 
 #define FORWARD_PIN 22
 #define REVERSE_PIN 23

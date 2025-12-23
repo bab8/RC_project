@@ -137,11 +137,9 @@ esp_err_t connectWifi(){
     return status;
 }
 
-esp_err_t startTCPClient(){
+esp_err_t startTCPClient(int *socket_ptr){
     //setup TCP client
     struct sockaddr_in serverInfo = {0};
-    char readBuffer[1024] = {0};
-    extern uint32_t ipAddr;
 
     serverInfo.sin_family = AF_INET;
     serverInfo.sin_addr.s_addr = IPADDR;
@@ -152,29 +150,30 @@ esp_err_t startTCPClient(){
         ESP_LOGE(TAG, "Failed to init socket");
         return TCP_FAILURE;
     }
+    *socket_ptr = sock;
 
     if(connect(sock, (struct sockaddr*)&serverInfo, sizeof(serverInfo)) != 0){
-        ESP_LOGE(TAG, "failed to connect to %s", inet_ntoa(serverInfo.sin_addr.s_addr));
+        ESP_LOGE(TAG, "Failed to connect to %s", inet_ntoa(serverInfo.sin_addr.s_addr));
         close(sock);
         return TCP_FAILURE;
     }
 
     ESP_LOGI(TAG, "Connected to TCP server");
-    bzero(readBuffer, sizeof(readBuffer));
-    int r = read(sock, readBuffer, sizeof(readBuffer)-1);
-    for(int i = 0; i < r; i++){
-        putchar(readBuffer[i]);
-    }
-
-    //when connected read from buffer
 
     return TCP_SUCCESS;
-
-    //if buffer contains valid command post event
 }
 
 void wifi(){
     esp_err_t status = WIFI_FAILURE; 
+
+    //init nvs
+    esp_err_t ret = nvs_flash_init();
+    if(ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND){
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        ret = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(ret);
+
 
     status = connectWifi();
     if(WIFI_SUCCESS != status){
@@ -182,10 +181,28 @@ void wifi(){
         return;
     }
 
-    status = startTCPClient();
+   
+    int socket;
+    status = startTCPClient(&socket);
     if(TCP_SUCCESS != status){
         ESP_LOGI(TAG, "Failed to connect to TCP server");
         return;
+    }
+
+    //when connected read from buffer
+    char readBuffer[1024] = {0};
+    bzero(readBuffer, sizeof(readBuffer));
+    while(1){
+        int r = recv(socket, readBuffer, sizeof(readBuffer) - 1, 0);
+        if(r < 0){
+            ESP_LOGE(TAG, "recv failed");
+            break;
+        } else{
+            //if buffer contains valid command post event
+            if(strcmp(readBuffer, "FORWARD") == 0){
+                ESP_LOGI(TAG, "FORWARD EVENT");
+            }
+        }
     }
 }
 
@@ -219,8 +236,10 @@ void app_main() {
         vTaskDelete(xMotorHandle);
     } */
 
-    //TODO: change motor init to just a function
-    //TODO: port motor loop to a handler
+    //TODO: Port wifi code to wifiTask
+    //TODO: cleanup files
+    //TODO: change motor init to just a function, passs motor like socket
+    //TODO: port motor loop to a handler, place in wifi task
     //TODO: create camera task
     //TODO: create idle task(for when connection is dead, investiagte low power mode)
 
