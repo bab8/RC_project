@@ -7,14 +7,19 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-typedef enum { STOP, FORWARD, REVERSE } EVENT;
+#include "bsp.h"
 
-typedef struct {
-    uint16_t sig;
-} Events;
-
-extern QueueHandle_t evQueueHandle;
+typedef enum {
+    MOTOR_EVENT_FORWARD,
+    MOTOR_EVENT_REVERSE,
+    MOTOR_EVENT_STOP
+} motor_event_id_t;
 
 void motorTask();
+
+void motorEventHandler(void* handler_arg,
+                                esp_event_base_t base,
+                                int32_t id,
+                                void* event_data);
 
 #endif

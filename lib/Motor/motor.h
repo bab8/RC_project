@@ -24,7 +24,7 @@ typedef struct {
     mcpwm_generator_config_t for_gen_config;
 } Motor;
 
-void motor_stop(int forward_pin, int reverse_pin);
+void motor_stop(Motor motor, int forward_pin, int reverse_pin);
 void motor_reverse(Motor motor, int forward_pin, int forward_button, double percent);
 void motor_forward(Motor motor, int reverse_pin, int reverse_button, double percent);
 Motor motor_driver_init(int forward_pin, int reverse_pin);

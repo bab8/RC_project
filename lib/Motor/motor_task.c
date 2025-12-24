@@ -5,38 +5,31 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 
-static const char* MOTOR_TASK_TAG = "MOTOR_TASK";
+ESP_EVENT_DECLARE_BASE(MOTOR_EVENT);
 
-void motorTask(){
-    ESP_LOGI(MOTOR_TASK_TAG, "Init Motor");
-    Motor motor = motor_driver_init(FORWARD_PIN,REVERSE_PIN);
-    ESP_LOGI(MOTOR_TASK_TAG, "Init Motor finished");
+static const char* TAG = "MOTOR_TASK";
 
-    Events event;
-    BaseType_t eventFlag;
-    //Motor event loop
-    while(1){
-        eventFlag = xQueueReceive(evQueueHandle, &(event), (TickType_t) 10);
-        ESP_LOGI(MOTOR_TASK_TAG, "Entered Event loop");
-        //check queue for event
-        if(eventFlag == pdPASS){
-            //process event
-            switch (event.sig)
-            {
-                case FORWARD:
-                    ESP_LOGI(MOTOR_TASK_TAG, "Forward Event Received");
-                    motor_forward(motor,FORWARD_PIN,FOR_BUTTON,.9);
-                    break;
-                case REVERSE:
-                    ESP_LOGI(MOTOR_TASK_TAG, "Reverse Event Received");
-                    motor_reverse(motor,REVERSE_PIN, REV_BUTTON,.8);
-                    break;
-                default:
-                    ESP_LOGI(MOTOR_TASK_TAG, "No Event Received");
-                    break;
-            }
-            vTaskDelay(1000/portTICK_PERIOD_MS);
-        } 
-        vTaskDelay(1000/portTICK_PERIOD_MS);   
-    }  
+void motorEventHandler(void* handler_arg,
+                                esp_event_base_t base,
+                                int32_t id,
+                                void* event_data){
+    if(base == MOTOR_EVENT){
+        Motor motor = (Motor)*(Motor*)event_data; //dumb hack investigates
+        switch(id){
+            case MOTOR_EVENT_FORWARD:
+                ESP_LOGI(TAG, "Forward Event Received");
+                motor_forward(motor, FORWARD_PIN, FOR_BUTTON,.9);
+                break;
+            case MOTOR_EVENT_REVERSE:
+                ESP_LOGI(TAG, "Reverse Event Received");
+                motor_reverse(motor, REVERSE_PIN, REV_BUTTON,.95);
+                break;
+            case MOTOR_EVENT_STOP:
+                ESP_LOGI(TAG, "Stop Event Received");
+                motor_stop(motor, REVERSE_PIN, REV_BUTTON);
+                break;
+            default:
+                ESP_LOGI(TAG,"Unknown Motor Event Id: %ld", id);
+        }
+    }
 }
